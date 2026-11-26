@@ -1,4 +1,6 @@
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+from .labels import UserRelatedField
 from rest_framework import serializers
 from .models import Ticket, TicketCategory, Comment, TicketEvent
 
@@ -8,6 +10,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields='__all__'
 
 class TicketSerializer(serializers.ModelSerializer):
+    assignee = UserRelatedField(queryset=get_user_model().objects.all(), required=False, allow_null=True)
     overdue=serializers.SerializerMethodField()
     class Meta:
         model=Ticket

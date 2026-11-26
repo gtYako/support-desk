@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.contrib.auth import get_user_model
+from .labels import UserChoiceField
 from django.db.models import Q
 from django.utils import timezone
 from django_filters import rest_framework as filters
@@ -9,7 +11,11 @@ from rest_framework.response import Response
 from .models import Ticket, TicketCategory, TicketEvent
 from .serializers import TicketSerializer, CategorySerializer, CommentSerializer, EventSerializer
 
+class UserChoiceFilter(filters.ModelChoiceFilter):
+    field_class = UserChoiceField
+
 class TicketFilter(filters.FilterSet):
+    assignee = UserChoiceFilter(label='Исполнитель', queryset=get_user_model().objects.all())
     overdue=filters.TypedChoiceFilter(label='Просрочено', choices=(('true','Да'),('false','Нет')), coerce=lambda v:v=='true', method='filter_overdue')
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
