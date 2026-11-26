@@ -10,7 +10,11 @@ from .models import Ticket, TicketCategory, TicketEvent
 from .serializers import TicketSerializer, CategorySerializer, CommentSerializer, EventSerializer
 
 class TicketFilter(filters.FilterSet):
-    overdue=filters.TypedChoiceFilter(choices=(('true','true'),('false','false')),coerce=lambda v:v=='true',method='filter_overdue')
+    overdue=filters.TypedChoiceFilter(label='Просрочено', choices=(('true','Да'),('false','Нет')), coerce=lambda v:v=='true', method='filter_overdue')
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, label in {'status':'Статус', 'category':'Категория', 'priority':'Приоритет', 'assignee':'Исполнитель'}.items():
+            self.filters[name].label = label
     def filter_overdue(self,qs,name,value):
         q=Q(status='new',response_due__lt=timezone.now())
         return qs.filter(q if value else ~q)
