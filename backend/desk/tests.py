@@ -30,3 +30,15 @@ class TicketTests(APITestCase):
         self.client.force_authenticate(self.admin);self.assertEqual(self.client.patch(self.url,{'status':'in_progress'}).status_code,200)
     def test_overdue(self):
         self.t.response_due=timezone.now()-timedelta(seconds=1);self.t.save();self.assertEqual(self.client.get('/api/tickets/',{'overdue':'true'}).data['count'],1)
+
+    def test_applicant_cannot_assign_or_change_status(self):
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.patch(self.url, {'assignee': self.user.id}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch(self.url, {'status': 'in_progress'}, format='json').status_code, 400)
+
+    def test_applicant_create_form_hides_assignment_and_status(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get('/api/tickets/', HTTP_ACCEPT='text/html')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8')
+        self.assertNotIn('name="assignee"', html.split('id="post-generic-content-form"')[0] if 'id="post-generic-content-form"' in html else html)

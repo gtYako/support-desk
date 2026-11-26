@@ -16,6 +16,22 @@ class TicketSerializer(serializers.ModelSerializer):
         model=Ticket
         fields='__all__'
         read_only_fields=('applicant','created_at','updated_at','overdue')
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return fields
+        user = request.user
+        instance = self.instance if isinstance(self.instance, Ticket) else None
+        if not user.is_staff:
+            fields['assignee'].read_only = True
+        if instance is None or not (user.is_staff or instance.assignee_id == user.id):
+            fields['status'].read_only = True
+        if instance is not None and instance.status == Ticket.Status.CLOSED:
+            for name in ('category', 'subject', 'description', 'priority', 'assignee', 'response_due'):
+                fields[name].read_only = True
+        return fields
+
     def get_overdue(self,obj):
         return obj.status == 'new' and obj.response_due < timezone.now()
     def validate(self, attrs):
@@ -23,6 +39,19 @@ class TicketSerializer(serializers.ModelSerializer):
         if 'response_due' in attrs and attrs['response_due'] < (self.instance.created_at if self.instance else now):
             raise serializers.ValidationError({'response_due':'Срок не может быть раньше создания обращения.'})
         user=self.context['request'].user
+        submitted = self.initial_data
+        if 'assignee' in submitted and not user.is_staff:
+            raise serializers.ValidationError({'assignee':'Назначение доступно администратору.'})
+        if 'status' in submitted:
+            new_status = submitted['status']
+            if not self.instance and new_status != Ticket.Status.NEW:
+                raise serializers.ValidationError({'status':'Новая заявка должна иметь статус new.'})
+            if self.instance and not (user.is_staff or self.instance.assignee_id == user.id) and new_status != self.instance.status:
+                raise serializers.ValidationError({'status':'Статус меняет исполнитель или администратор.'})
+        if self.instance and self.instance.status == Ticket.Status.CLOSED:
+            allowed = {'status'} if user.is_staff else set()
+            if set(submitted) - allowed:
+                raise serializers.ValidationError({'status':'Закрытое обращение сначала нужно переоткрыть.'})
         if not self.instance:
             if attrs.get('status',Ticket.Status.NEW) != Ticket.Status.NEW:
                 raise serializers.ValidationError({'status':'Новая заявка должна иметь статус new.'})
