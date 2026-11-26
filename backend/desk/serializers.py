@@ -10,8 +10,8 @@ class CategorySerializer(serializers.ModelSerializer):
         fields='__all__'
 
 class TicketSerializer(serializers.ModelSerializer):
-    assignee = UserRelatedField(queryset=get_user_model().objects.all(), required=False, allow_null=True)
-    overdue=serializers.SerializerMethodField()
+    assignee = UserRelatedField(label='Исполнитель', queryset=get_user_model().objects.all(), required=False, allow_null=True)
+    overdue=serializers.SerializerMethodField(label='Просрочено')
     class Meta:
         model=Ticket
         fields='__all__'
